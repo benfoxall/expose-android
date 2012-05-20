@@ -8,6 +8,7 @@ public class ExposeActivity extends DroidGap {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+//        System.out.println("Yuup, this works");
         super.loadUrl("file:///android_asset/www/index.html");
     }
 }

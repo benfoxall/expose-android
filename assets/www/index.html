@@ -2,24 +2,107 @@
 <html>
 <head>
 <title>Cordova</title>
+<!-- <script src="http://debug.phonegap.com/target/target-script-min.js#helllooooo"></script> -->
 <script type="text/javascript" charset="utf-8" src="cordova-1.7.0.js"></script>
 <script type="text/javascript" charset="utf-8" src="barcodescanner.js"></script>
+<script type="text/javascript" charset="utf-8" src="socket.io.js"></script>
 </head>
 <body>
 	<h1>Expose</h1>
+	<button id="b">Link up</button>
 
 <script type="text/javascript">
 
 document.addEventListener("deviceready", onDeviceReady, false);
 
+
+// returns a cloned object with any functions replaced with '__fn__'
+function augment(obj){
+	// var newobj = {};
+	var maxdepth = 5;
+
+	return (function recurse(obj, depth){
+		if(!depth){
+			return "max depth reached";
+
+		} else if(typeof(obj) === 'function'){
+			return '__fn__';
+
+		} else if(obj === new Object(obj)){
+			var newobj = {};
+			for(var i in obj){
+				// if(obj.hasOwnProperty(i)){
+					newobj[i] = recurse(obj[i], depth - 1);
+				// }
+			}
+			return newobj;
+
+		} else {
+			return obj;
+		}
+	})(obj, maxdepth);
+}
+
 function onDeviceReady() {
     // Now safe to use the Cordova API
+    document.getElementById('b').addEventListener("click", function(){
+    	alert("Clicked");
+    }, false);
 
 	    window.plugins.barcodeScanner.scan( function(result) {
-	        alert("We got a barcode\n" +
-	                  "Result: " + result.text + "\n" +
-	                  "Format: " + result.format + "\n" +
-	                  "Cancelled: " + result.cancelled);
+    		if(result.text){
+    			var toks = result.text.split('?');
+
+    			var exposedObj = {
+    				barcodeScanner:window.plugins.barcodeScanner,
+    				camera:navigator.camera,
+    				compass:navigator.compass,
+    				test:'OK'
+    			};
+
+    			// multiple args aren't supported yet
+    			exposedObj.captureHack = function(fn){
+    				 navigator.camera.getPicture(fn, function(){
+    				 	alert('failed to get picture')
+    				 }, { 
+    				 	quality: 50, 
+    				 	destinationType: navigator.camera.DestinationType.DATA_URL
+    				});
+    			}
+
+	       		var socket = io.connect(toks[0]);
+
+			  		socket.emit('expose', toks[1], augment(exposedObj));
+
+
+					socket.on('request', function(rID,what){
+						var target = exposedObj;
+
+						var parts = what.split('.');
+						for(i in parts){
+							if(parts[i]){
+								target = target[parts[i]];
+							}
+						}
+						target(function(){
+							var args = Array.prototype.slice.call(arguments)
+							socket.emit('response', rID, args);
+						});
+					});
+
+		
+
+
+
+
+
+    		}
+	        // alert("We got a barcode\n" +
+	        //           "Result: " + result.text + "\n" +
+	        //           "Format: " + result.format + "\n" +
+	        //           "Cancelled: " + result.cancelled);
+
+
 	    }, function(error) {
 	        alert("Scanning failed: " + error);
 	    }
